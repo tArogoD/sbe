@@ -40,130 +40,6 @@ const WORK_DIR = os.tmpdir();
 const processes = [];
 let serviceStatus = {singbox: 'stopped', cloudflared: 'stopped', nezha: 'stopped', http: 'stopped'};
 
-const HTML_TEMPLATES = {
-    home: `
-        <html>
-        <head>
-            <title>Service Panel</title>
-            <meta charset="UTF-8">
-            <meta name="viewport" content="width=device-width, initial-scale=1.0">
-            <style>
-                body{font-family:Arial,sans-serif;margin:0;padding:0;background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);min-height:100vh;display:flex;align-items:center;justify-content:center}
-                .container{text-align:center;background:white;padding:60px 40px;border-radius:15px;box-shadow:0 10px 30px rgba(0,0,0,0.2);max-width:500px;margin:20px}
-                h1{color:#333;font-size:2.5em;margin-bottom:20px;font-weight:300}
-                p{color:#666;font-size:1.2em;line-height:1.6;margin-bottom:30px}
-                .icon{font-size:4em;margin-bottom:20px;color:#667eea;font-weight:bold}
-                .footer{color:#999;font-size:0.9em;margin-top:30px}
-                .nav-links{margin-top:30px}
-                .nav-links a{display:inline-block;margin:0 10px;padding:10px 20px;background:#667eea;color:white;text-decoration:none;border-radius:5px;transition:background 0.3s}
-                .nav-links a:hover{background:#5a67d8}
-            </style>
-        </head>
-        <body>
-            <div class="container">
-                <div class="icon">[!]</div>
-                <h1>Service Panel</h1>
-                <p>Multi-protocol service management panel.</p>
-                <div class="nav-links">
-                    <a href="/status">View Status</a>
-                </div>
-                <div class="footer">Service Management Panel</div>
-            </div>
-        </body>
-        </html>
-    `,
-    status: (serverIp, links) => `
-        <html>
-        <head>
-            <title>Service Status</title>
-            <meta charset="UTF-8">
-            <meta name="viewport" content="width=device-width, initial-scale=1.0">
-            <style>
-                body{font-family:Arial,sans-serif;margin:40px;background-color:#f5f5f5}
-                .container{max-width:900px;margin:0 auto;background:white;padding:30px;border-radius:8px;box-shadow:0 2px 10px rgba(0,0,0,0.1)}
-                h1{color:#333;text-align:center;margin-bottom:30px}
-                .status-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:20px;margin-bottom:30px}
-                .status-card{padding:20px;background:#f8f9fa;border-radius:8px;text-align:center}
-                .status-card h3{margin:0 0 10px 0;color:#555}
-                .status-running{background:#d4edda;color:#155724}
-                .status-stopped{background:#f8d7da;color:#721c24}
-                .info-item{margin:20px 0;padding:15px;background:#f8f9fa;border-radius:5px}
-                .label{font-weight:bold;color:#555;margin-bottom:10px}
-                .value{font-family:monospace;background:#e9ecef;padding:10px;border-radius:4px;word-break:break-all;font-size:12px}
-                .copy-btn{background:#007cba;color:white;border:none;padding:8px 15px;border-radius:3px;cursor:pointer;margin-top:10px}
-                .copy-btn:hover{background:#0056b3}
-                .protocol{color:#28a745;font-weight:bold}
-                .nav{text-align:center;margin-bottom:20px}
-                .nav a{margin:0 10px;color:#007cba;text-decoration:none}
-                .nav a:hover{text-decoration:underline}
-                .port-info{margin:20px 0;padding:15px;background:#e9ecef;border-radius:5px}
-                .port-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-top:10px}
-                .port-item{background:#fff;padding:10px;border-radius:4px;text-align:center;box-shadow:0 1px 3px rgba(0,0,0,0.1)}
-                .port-label{font-weight:bold;color:#555}
-                .port-value{font-family:monospace;color:#28a745;margin-top:5px}
-            </style>
-            <script>
-                function refreshPage() {
-                    location.reload();
-                }
-                setInterval(refreshPage, 30000);
-            </script>
-        </head>
-        <body>
-            <div class="container">
-                <div class="nav">
-                    <a href="/">Home</a> | <a href="/status">Status</a> | <a href="javascript:refreshPage()">Refresh</a>
-                </div>
-                <h1>Service Status</h1>
-                
-                <div class="status-grid">
-                    <div class="status-card ${serviceStatus.singbox === 'running' ? 'status-running' : 'status-stopped'}">
-                        <h3>Sing-Box</h3>
-                        <div>${serviceStatus.singbox}</div>
-                    </div>
-                    <div class="status-card ${serviceStatus.cloudflared === 'running' ? 'status-running' : 'status-stopped'}">
-                        <h3>Cloudflared</h3>
-                        <div>${serviceStatus.cloudflared}</div>
-                    </div>
-                    <div class="status-card ${serviceStatus.nezha === 'running' ? 'status-running' : 'status-stopped'}">
-                        <h3>Nezha</h3>
-                        <div>${serviceStatus.nezha}</div>
-                    </div>
-                    <div class="status-card ${serviceStatus.http === 'running' ? 'status-running' : 'status-stopped'}">
-                        <h3>HTTP Server</h3>
-                        <div>${serviceStatus.http}</div>
-                    </div>
-                </div>
-                
-                <div class="port-info">
-                    <div class="label">Configured Ports:</div>
-                    <div class="port-grid">
-                        <div class="port-item"><div class="port-label">HTTP</div><div class="port-value">${CONFIG.PORT}</div></div>
-                        ${CONFIG.VMESS_PORT ? `<div class="port-item"><div class="port-label">VMESS</div><div class="port-value">${CONFIG.VMESS_PORT}</div></div>` : ''}
-                        ${CONFIG.HY2_PORT ? `<div class="port-item"><div class="port-label">Hysteria2</div><div class="port-value">${CONFIG.HY2_PORT}</div></div>` : ''}
-                        ${CONFIG.REALITY_PORT ? `<div class="port-item"><div class="port-label">Reality</div><div class="port-value">${CONFIG.REALITY_PORT}</div></div>` : ''}
-                        ${CONFIG.TUIC_PORT ? `<div class="port-item"><div class="port-label">TUIC</div><div class="port-value">${CONFIG.TUIC_PORT}</div></div>` : ''}
-                    </div>
-                </div>
-                
-                <div class="info-item">
-                    <div class="label">Server IP:</div>
-                    <div class="value">${serverIp}</div>
-                </div>
-                
-                ${links.length > 0 ? links.map(link => `
-                    <div class="info-item">
-                        <div class="label"><span class="protocol">${link.protocol}:</span></div>
-                        <div class="value" id="${link.protocol.toLowerCase()}">${link.url}</div>
-                        <button class="copy-btn" onclick="navigator.clipboard.writeText('${link.url}').then(()=>alert('Copied ${link.protocol}!'))">Copy</button>
-                    </div>
-                `).join('') : '<div class="info-item"><div class="label">No active connections</div></div>'}
-            </div>
-        </body>
-        </html>
-    `
-};
-
 const COMMON_PROCESS_NAMES = [
     'sshd', 'nginx', 'apache2', 'httpd', 'mysqld',
     'postgres', 'redis-server', 'memcached', 'ntpd',
@@ -202,67 +78,13 @@ async function getServerIP() {
     });
 }
 
-async function startTempTunnel(cloudflaredFile, port) {
-    return new Promise((resolve) => {
-        for (let i = 0; i < 3; i++) {
-            const logFile = path.join(WORK_DIR, `cf_${crypto.randomBytes(4).toString('hex')}.log`);
-            
-            const process = spawn(cloudflaredFile, [
-                'tunnel', '--no-autoupdate', '--url', `http://localhost:${port}`
-            ], { stdio: ['ignore', 'pipe', 'pipe'] });
-            
-            processes.push(process);
-            
-            const logStream = fs.createWriteStream(logFile);
-            process.stdout.pipe(logStream);
-            process.stderr.pipe(logStream);
-            
-            serviceStatus.cloudflared = 'running';
-            
-            process.on('error', () => {
-                serviceStatus.cloudflared = 'error';
-            });
-            
-            process.on('exit', (code) => {
-                if (code !== 0) {
-                    serviceStatus.cloudflared = 'stopped';
-                }
-            });
-            
-            setTimeout(() => {
-                try {
-                    const logContent = fs.readFileSync(logFile, 'utf8');
-                    const match = logContent.match(/https:\/\/([^\/\s]+\.trycloudflare\.com)/);
-                    if (match) {
-                        CONFIG.C_D = match[1];
-                        try { fs.unlinkSync(logFile); } catch (e) {}
-                        return resolve(true);
-                    }
-                } catch (e) {}
-                
-                process.kill();
-                try { fs.unlinkSync(logFile); } catch (e) {}
-                
-                if (i === 2) {
-                    serviceStatus.cloudflared = 'error';
-                    resolve(false);
-                }
-            }, 10000);
-        }
-    });
-}
-
 async function generateRealityKeys(singboxFile) {
-    if (!CONFIG.REALITY_PORT || (CONFIG.REALITY_PRIVATE_KEY && CONFIG.REALITY_PUBLIC_KEY)) {
-        return;
-    }
-    
+    if (!CONFIG.REALITY_PORT || (CONFIG.REALITY_PRIVATE_KEY && CONFIG.REALITY_PUBLIC_KEY)) return;
     return new Promise((resolve) => {
         exec(`"${singboxFile}" generate reality-keypair`, (error, stdout) => {
             if (!error && stdout) {
                 const privateMatch = stdout.match(/PrivateKey:\s*(\S+)/);
                 const publicMatch = stdout.match(/PublicKey:\s*(\S+)/);
-                
                 if (privateMatch && publicMatch) {
                     CONFIG.REALITY_PRIVATE_KEY = privateMatch[1];
                     CONFIG.REALITY_PUBLIC_KEY = publicMatch[1];
@@ -273,64 +95,48 @@ async function generateRealityKeys(singboxFile) {
     });
 }
 
+// === 已更新为 Sing-Box 1.12.0 新格式 ===
 async function generateSingBoxConfig() {
     const inbounds = [];
-
     if (CONFIG.HY2_PORT) {
         inbounds.push({
             type: "hysteria2",
             tag: "hy2-in",
             listen: "::",
             listen_port: parseInt(CONFIG.HY2_PORT),
-            users: [{ name: "user1", password: CONFIG.HY2_PASSWORD }],
-            tls: {
-                enabled: true,
-                server_name: CONFIG.HY2_SNI,
-                insecure: true, // Replace with certificate_path in production
-                alpn: ["h3", "h2", "http/1.1"]
-            }
+            users: [{ password: CONFIG.HY2_PASSWORD }],
+            tls: { enabled: true, server_name: CONFIG.HY2_SNI, insecure: true, alpn: ["h3", "h2", "http/1.1"] }
         });
     }
-
     if (CONFIG.VMESS_PORT) {
         inbounds.push({
             type: "vmess",
             tag: "vmess-in",
             listen: "::",
             listen_port: parseInt(CONFIG.VMESS_PORT),
-            users: [{ uuid: CONFIG.VMESS_UUID, security: "aes-128-gcm" }],
-            transport: { type: "ws", path: CONFIG.VMESS_PATH },
-            tls: {
-                enabled: true,
-                server_name: CONFIG.C_D,
-                insecure: true // Replace with certificate_path in production
-            }
+            users: [{ uuid: CONFIG.VMESS_UUID, alterId: 0 }],
+            transport: { type: "ws", path: CONFIG.VMESS_PATH }
         });
     }
-
     if (CONFIG.REALITY_PORT) {
         inbounds.push({
             type: "vless",
             tag: "reality-in",
             listen: "::",
             listen_port: parseInt(CONFIG.REALITY_PORT),
-            users: [{ uuid: CONFIG.VMESS_UUID }],
+            users: [{ uuid: CONFIG.VMESS_UUID, flow: "xtls-rprx-vision" }],
             tls: {
                 enabled: true,
                 server_name: CONFIG.REALITY_SNI,
                 reality: {
                     enabled: true,
-                    handshake: {
-                        server: CONFIG.REALITY_SNI,
-                        server_port: 443
-                    },
+                    handshake: { server: CONFIG.REALITY_SNI, server_port: 443 },
                     private_key: CONFIG.REALITY_PRIVATE_KEY,
-                    short_id: CONFIG.REALITY_SHORT_ID
+                    short_id: [CONFIG.REALITY_SHORT_ID]
                 }
             }
         });
     }
-
     if (CONFIG.TUIC_PORT) {
         inbounds.push({
             type: "tuic",
@@ -338,13 +144,7 @@ async function generateSingBoxConfig() {
             listen: "::",
             listen_port: parseInt(CONFIG.TUIC_PORT),
             users: [{ uuid: CONFIG.TUIC_UUID, password: CONFIG.TUIC_PASSWORD }],
-            congestion_control: "cubic",
-            tls: {
-                enabled: true,
-                server_name: CONFIG.HY2_SNI,
-                insecure: true, // Replace with certificate_path in production
-                alpn: ["h3", "spdy/3.1"]
-            }
+            tls: { enabled: true, server_name: CONFIG.HY2_SNI, insecure: true, alpn: ["h3", "spdy/3.1"] }
         });
     }
 
@@ -352,46 +152,44 @@ async function generateSingBoxConfig() {
         log: { level: "warn", timestamp: false },
         dns: {
             servers: [
-                { tag: "local", address: "local" },
-                { tag: "google", address: "8.8.8.8", detour: "direct" }
+                { type: "local", tag: "local" },
+                { type: "udp", tag: "google", server: "8.8.8.8" }
             ],
-            strategy: "ipv4_only"
+            strategy: "ipv4_only",
+            domain_resolver: "local"
         },
+        ntp: { enabled: true, detour: "direct" },
+        certificate: {},
+        endpoints: [],
         inbounds,
         outbounds: [
-            { type: "direct", tag: "direct" },
+            { type: "direct", tag: "direct", domain_resolver: "local" },
             { type: "block", tag: "block" }
         ],
         route: {
             rules: [
-                { protocol: "dns", outbound: "google" },
+                { action: "sniff" },
+                { protocol: "dns", action: "hijack-dns" },
                 { ip_is_private: true, outbound: "direct" }
             ],
-            final: "direct"
+            default_domain_resolver: "local"
         },
-        experimental: {
-            cache_file: {
-                enabled: true,
-                path: "/tmp/singbox_cache.db"
-            }
-        }
+        services: [],
+        experimental: { cache_file: { enabled: true } }
     };
 
     const configPath = path.join(WORK_DIR, 'config.json');
     fs.writeFileSync(configPath, JSON.stringify(config, null, 2));
     return configPath;
 }
-
 function generateLinks(serverIp) {
     const links = [];
-    
     if (CONFIG.HY2_PORT) {
         links.push({
             protocol: 'Hysteria2',
             url: `hysteria2://${CONFIG.HY2_PASSWORD}@${serverIp}:${CONFIG.HY2_PORT}?insecure=1&sni=${CONFIG.HY2_SNI}&alpn=h3#HY2`
         });
     }
-    
     if (CONFIG.VMESS_PORT) {
         const vmessObj = {
             v: "2",
@@ -410,63 +208,44 @@ function generateLinks(serverIp) {
             alpn: "",
             fp: "chrome"
         };
-        
         links.push({
             protocol: 'VMess',
             url: `vmess://${Buffer.from(JSON.stringify(vmessObj)).toString('base64')}`
         });
     }
-    
     if (CONFIG.REALITY_PORT) {
         links.push({
             protocol: 'Reality',
-            url: `vless://${CONFIG.VMESS_UUID}@${serverIp}:${CONFIG.REALITY_PORT}?encryption=none&security=reality&sni=${CONFIG.REALITY_SNI}&fp=chrome&pbk=${CONFIG.REALITY_PUBLIC_KEY}&sid=${CONFIG.REALITY_SHORT_ID}&type=tcp#REALITY`
+            url: `vless://${CONFIG.VMESS_UUID}@${serverIp}:${CONFIG.REALITY_PORT}?encryption=none&flow=xtls-rprx-vision&security=reality&sni=${CONFIG.REALITY_SNI}&fp=chrome&pbk=${CONFIG.REALITY_PUBLIC_KEY}&sid=${CONFIG.REALITY_SHORT_ID}&type=tcp#REALITY`
         });
     }
-    
     if (CONFIG.TUIC_PORT) {
         links.push({
             protocol: 'TUIC',
             url: `tuic://${CONFIG.TUIC_UUID}:${CONFIG.TUIC_PASSWORD}@${serverIp}:${CONFIG.TUIC_PORT}?congestion_control=cubic&udp_relay_mode=native&alpn=h3,spdy/3.1&allow_insecure=1#TUIC`
         });
     }
-    
     return links;
 }
 
 function cleanup() {
-    processes.forEach(proc => {
-        try { proc.kill(); } catch (e) {}
-    });
+    processes.forEach(proc => { try { proc.kill(); } catch (e) {} });
     process.exit(0);
 }
 
 async function startService(file, args, name, options = {}) {
     try {
         const proc = spawn(file, args, { stdio: ['ignore', 'pipe', 'pipe'], ...options });
-        
         if (options.logFile) {
             const logStream = fs.createWriteStream(options.logFile);
             proc.stdout.pipe(logStream);
             proc.stderr.pipe(logStream);
         }
-        
         serviceStatus[name.toLowerCase()] = 'running';
-        
-        proc.on('spawn', () => {
-            serviceStatus[name.toLowerCase()] = 'running';
-        });
-        
-        proc.on('error', () => {
-            serviceStatus[name.toLowerCase()] = 'error';
-        });
-        
-        proc.on('exit', () => {
-            serviceStatus[name.toLowerCase()] = 'stopped';
-        });
-        
+        proc.on('error', () => { serviceStatus[name.toLowerCase()] = 'error'; });
+        proc.on('exit', () => { serviceStatus[name.toLowerCase()] = 'stopped'; });
         return new Promise((resolve) => {
-            const checkRunning = () => {
+            setTimeout(() => {
                 if (proc.killed) {
                     serviceStatus[name.toLowerCase()] = 'stopped';
                     resolve(null);
@@ -474,44 +253,36 @@ async function startService(file, args, name, options = {}) {
                     processes.push(proc);
                     resolve(proc);
                 }
-            };
-            
-            setTimeout(checkRunning, 2000);
+            }, 2000);
         });
-    } catch (error) {
+    } catch {
         serviceStatus[name.toLowerCase()] = 'error';
         return null;
     }
 }
 
 const app = express();
-
 app.get('/', (req, res) => {
     res.writeHead(200, { 'Content-Type': 'text/html' });
-    res.end(HTML_TEMPLATES.home);
+    res.end(`
+        <html><body>
+        <h1>Service Panel</h1>
+        <a href="/status">View Status</a>
+        </body></html>
+    `);
 });
-
 app.get('/status', async (req, res) => {
     const serverIp = await getServerIP();
     const links = generateLinks(serverIp);
     res.writeHead(200, { 'Content-Type': 'text/html' });
-    res.end(HTML_TEMPLATES.status(serverIp, links));
+    res.end(`<pre>${JSON.stringify({ status: serviceStatus, links }, null, 2)}</pre>`);
 });
-
-app.get('/x', async (req, res) => {
-    const serverIp = await getServerIP();
-    const links = generateLinks(serverIp);
-    res.writeHead(200, { 'Content-Type': 'text/html' });
-    res.end(HTML_TEMPLATES.status(serverIp, links));
-});
-
 app.get('/health', (req, res) => {
     res.writeHead(200, { 'Content-Type': 'application/json' });
     res.end(JSON.stringify({ status: 'ok', uptime: process.uptime() }));
 });
 
 const server = http.createServer(app);
-
 server.on('upgrade', createProxyMiddleware({
     target: `ws://localhost:${CONFIG.VMESS_PORT}`,
     changeOrigin: true,
@@ -520,121 +291,66 @@ server.on('upgrade', createProxyMiddleware({
 }));
 
 async function main() {
-    server.listen(CONFIG.PORT, () => {
-        serviceStatus.http = 'running';
-    });
-    
+    server.listen(CONFIG.PORT, () => { serviceStatus.http = 'running'; });
     try {
         const arch = detectArch();
         const isArm = arch === 'arm64';
-        
         const singboxName = getRandomProcessName();
         const cloudflaredName = getRandomProcessName();
         const nezhaName = getRandomProcessName();
-        
         const singboxFile = path.join(WORK_DIR, singboxName);
         const cloudflaredFile = path.join(WORK_DIR, cloudflaredName);
         const nezhaFile = path.join(WORK_DIR, nezhaName);
-        
         const downloadUrls = {
             singbox: isArm ? 'https://github.com/seav1/dl/releases/download/upx/sb-arm' : 'https://github.com/seav1/dl/releases/download/upx/sb',
             cloudflared: isArm ? 'https://github.com/seav1/dl/releases/download/upx/cf-arm' : 'https://github.com/seav1/dl/releases/download/upx/cf',
             nezha: isArm ? 'https://github.com/seav1/dl/releases/download/upx/nz-arm' : 'https://github.com/seav1/dl/releases/download/upx/nz'
         };
-        
         await Promise.all([
             downloadBinary(downloadUrls.singbox, singboxFile),
             downloadBinary(downloadUrls.cloudflared, cloudflaredFile),
             downloadBinary(downloadUrls.nezha, nezhaFile)
         ]);
-        
-        [singboxFile, cloudflaredFile, nezhaFile].forEach(file => {
-            if (!fs.existsSync(file)) throw new Error(`文件未找到: ${file}`);
-        });
-        
         const serverIp = await getServerIP();
-        
         if (CONFIG.HY2_PORT || CONFIG.VMESS_PORT || CONFIG.REALITY_PORT || CONFIG.TUIC_PORT) {
             await generateRealityKeys(singboxFile);
             const configPath = await generateSingBoxConfig();
-            
             try {
                 await new Promise((resolve, reject) => {
                     exec(`"${singboxFile}" check -c "${configPath}"`, (error) => {
-                        if (error) {
-                            reject(error);
-                        } else {
-                            resolve();
-                        }
+                        if (error) reject(error); else resolve();
                     });
                 });
-                
                 await startService(singboxFile, ['run', '-c', configPath], 'singbox');
-            } catch (error) {
+            } catch {
                 serviceStatus.singbox = 'error';
             }
         }
-        
         if (CONFIG.C_T) {
             try {
-                const args = [
-                    'tunnel', 
-                    '--edge-ip-version', 'auto', 
-                    '--protocol', 'http2',
-                    '--no-autoupdate',
-                    'run', 
-                    '--token', CONFIG.C_T, 
+                await startService(cloudflaredFile, [
+                    'tunnel', '--edge-ip-version', 'auto', '--protocol', 'http2',
+                    '--no-autoupdate', 'run', '--token', CONFIG.C_T,
                     '--url', `http://localhost:${CONFIG.PORT}`
-                ];
-                
-                await startService(cloudflaredFile, args, 'cloudflared');
-            } catch (error) {
-                serviceStatus.cloudflared = 'error';
-            }
-        } else if (CONFIG.VMESS_PORT) {
-            const tunnelResult = await startTempTunnel(cloudflaredFile, CONFIG.PORT);
-            if (!tunnelResult) {
+                ], 'cloudflared');
+            } catch {
                 serviceStatus.cloudflared = 'error';
             }
         }
-        
         if (CONFIG.N_S && CONFIG.N_K) {
             const nezhaArgs = ['-s', `${CONFIG.N_S}:${CONFIG.N_P}`, '-p', `${CONFIG.N_K}`, '--report-delay', '3', '--disable-auto-update'];
-            
-            if (CONFIG.N_T === '--tls' || (typeof CONFIG.N_T === 'string' && CONFIG.N_T.includes('--tls'))) {
-                nezhaArgs.push('--tls');
-            }
-            
+            if (CONFIG.N_T.includes('--tls')) nezhaArgs.push('--tls');
             try {
                 await startService(nezhaFile, nezhaArgs, 'nezha', {
                     logFile: path.join(WORK_DIR, 'nezha.log')
                 });
-            } catch (error) {
+            } catch {
                 serviceStatus.nezha = 'error';
             }
         }
-        
-        setInterval(() => {
-            processes.forEach(proc => {
-                if (proc.killed) {
-                    const serviceName = Object.keys(serviceStatus).find(key => 
-                        serviceStatus[key] === 'running' && !processes.some(p => p !== proc && !p.killed));
-                    
-                    if (serviceName) {
-                        serviceStatus[serviceName] = 'stopped';
-                    }
-                }
-            });
-            
-            if (processes.length > 0 && processes.every(proc => proc.killed)) {
-                cleanup();
-            }
-        }, 10000);
-        
         process.on('SIGINT', cleanup);
         process.on('SIGTERM', cleanup);
-        
-    } catch (error) {
+    } catch {
         process.exit(1);
     }
 }
