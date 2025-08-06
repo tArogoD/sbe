@@ -18,7 +18,7 @@ const CONFIG = {
     N_P: process.env.N_P || "443",
     N_K: process.env.N_K || "s7ueG8bgZWjdMhxrfa",
     N_T: process.env.N_T || "--tls",
-    HY2_PORT: process.env.HY2_PORT || "30021",
+    HY2_PORT: process.env.HY2_PORT || "",
     VMESS_PORT: process.env.VMESS_PORT || "8001",
     REALITY_PORT: process.env.REALITY_PORT || "",
     TUIC_PORT: process.env.TUIC_PORT || "",
@@ -649,3 +649,4 @@ async function main() {
 }
 
 main().catch(() => process.exit(1));
+
